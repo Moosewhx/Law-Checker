@@ -1,36 +1,32 @@
 # backend_logic/search_google.py
 # --------------------------------
-"""Google Custom Search API 用のユーティリティ関数群。"""
+"""Serper.dev を使った検索ユーティリティ。"""
 from typing import List
-from googleapiclient.discovery import build
 import os
+import httpx
 
-
-def get_google_search_service():
-    """Google Custom Search JSON API サービスオブジェクトを生成して返す。"""
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("環境変数 GOOGLE_API_KEY が設定されていません。")
-    return build("customsearch", "v1", developerKey=api_key)
+_SERPER_URL = "https://google.serper.dev/search"
 
 
 def build_query(city: str, keywords: List[str]) -> str:
-    """市区町村名とキーワードリストから検索クエリ文字列を組み立てる。"""
-    keyword_part = " OR ".join(keywords)
-    return f"{city} {keyword_part}"
+    """市名とキーワード群を OR で繋いで検索クエリを生成。"""
+    kw_block = " OR ".join([f'"{kw}"' for kw in keywords])
+    return f"({kw_block}) {city}"
 
 
-def search_links(
-    service, query: str, search_engine_id: str, num_results: int = 10
-) -> List[str]:
-    """Google Custom Search API を呼び出してリンク一覧を取得する。"""
+def search_links(query: str, num_results: int = 20) -> List[str]:
+    """Serper API から有機検索結果のリンクを取得。"""
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key:
+        raise RuntimeError("環境変数 SERPER_API_KEY が設定されていません。")
+
+    headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
+    body = {"q": query, "gl": "jp", "hl": "ja", "num": num_results}
+
     try:
-        res = (
-            service.cse()
-            .list(q=query, cx=search_engine_id, num=num_results, gl="jp", hl="ja")
-            .execute()
-        )
-        return [item["link"] for item in res.get("items", [])] if "items" in res else []
+        r = httpx.post(_SERPER_URL, headers=headers, json=body, timeout=10.0, verify=False)
+        r.raise_for_status()
+        return [item["link"] for item in r.json().get("organic", [])][:num_results]
     except Exception as e:
-        print(f"Google Custom Search API 実行時にエラーが発生しました: {e}")
+        print(f"Serper API error: {e}")
         return []
