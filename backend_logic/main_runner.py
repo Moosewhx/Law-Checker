@@ -1,3 +1,5 @@
+# file: backend_logic/main_runner.py (語法修正版)
+
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -7,7 +9,9 @@ import tldextract
 
 # 導入所有需要的模組
 from .initialize_credentials import initialize_google_credentials
+# --- 修正：這裡的函式名稱不應有空格或大寫 ---
 from .search_google import build_query, search_links, get_Google Search_service
+# --- 修正結束 ---
 from .ai_filter import is_link_relevant
 from .link_crawler import bfs
 from .pdf_downloader import download_pdf_if_available
@@ -16,21 +20,19 @@ from .summarizer import summarize_text_from_url_or_pdf, generate_zone_regulation
 def run_analysis_for_city(city: str) -> dict:
     load_dotenv()
     
-    # 步驟 1: 初始化 Google 憑證，這是最先要做的事
     try:
         initialize_google_credentials()
         print("✅ Googleサービスアカウントの認証に成功しました。")
     except Exception as e:
         return {"error": f"Google認証エラー: {e}"}
 
-    # 步驟 2: 獲取其他必要的環境變數
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
 
     if not all([OPENAI_API_KEY, SEARCH_ENGINE_ID]):
         raise ValueError("環境変数 OPENAI_API_KEY と SEARCH_ENGINE_ID を設定してください。")
 
-    # 步驟 3: 執行主要邏輯
+    # 呼叫正確名稱的函式
     Google Search_service = get_Google Search_service()
 
     keywords_str = "都市計画図,用途地域,建蔽率,容積率,開発指導要綱,建築基準法"
