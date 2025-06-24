@@ -1,61 +1,75 @@
+"""リンクが都市計画情報かどうかを判定するユーティリティ。"""
+from __future__ import annotations
+
+import os
+from urllib.parse import urlparse
+
 import openai
+import tldextract
 
-def is_link_relevant(link_url, keywords, api_key):
-    openai.api_key = api_key
-    
-    keywords_str = ", ".join(keywords)
-    
-    prompt_text = f"""
-    You are an expert real estate development researcher in Japan.
-    Analyze the following URL and determine if it is likely to contain specific, official information about city planning, zoning regulations, building standards, or development guidelines for a Japanese city.
 
-    URL: {link_url}
+# ---------------------- 内部ヘルパ ---------------------- #
+def _same_registered_domain(url: str, base_domain: str) -> bool:
+    """登録ドメイン（example.co.jp など）が一致するか判定する。"""
+    netloc = urlparse(url).netloc
+    reg = tldextract.extract(netloc).registered_domain
+    return reg == base_domain
 
-    Keywords for context: {keywords_str}
 
-    Consider the following:
-    1.  Does the URL path look like it belongs to a government or municipal site (e.g., city.chiba.jp, pref.aichi.jp)?
-    2.  Does the URL contain terms like "toshikeikaku" (city planning), "yotochiiki" (zoning), "kenchikukijunho" (building standards act), "kaihatsu" (development), "shido" (guidance)?
-    3.  Is it likely to be a primary source document (like a PDF of regulations, a map, or an official city page) rather than a blog post, news article, or a real estate company's marketing page?
-
-    Based on your analysis, is this URL a potentially useful, official primary source for researching zoning and building regulations?
-    Respond with only "Yes" or "No".
+# ------------------ パブリックインターフェース ------------------ #
+def is_link_relevant(
+    url: str,
+    city: str,
+    base_domain: str,
+    api_key: str,
+) -> bool:
     """
+    指定 URL が「city の都市計画関連情報」を含むか AI で判定する。
 
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an expert real estate development researcher in Japan."},
-                {"role": "user", "content": prompt_text}
-            ],
-            max_tokens=5,
-            temperature=0.0
-        )
-        
-        answer = response.choices[0].message.content.strip()
-        return answer.lower().startswith('yes')
+    Parameters
+    ----------
+    url : str
+        判定対象の URL。
+    city : str
+        市区町村名（例: "横浜市"）。
+    base_domain : str
+        クロール対象の登録ドメイン（example.co.jp など）。
+    api_key : str
+        OpenAI API キー。
 
-    except Exception as e:
-        print(f"An error occurred while checking relevance for {link_url}: {e}")
+    Returns
+    -------
+    bool
+        関連していれば True、無関係なら False。
+    """
+    # 1) 同一ドメインチェック（スパムサイトへ飛び過ぎないための早期フィルタ）
+    if not _same_registered_domain(url, base_domain):
         return False
 
-if __name__ == '__main__':
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY not found in .env file")
+    # 2) OpenAI による内容判定
+    openai.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+    if not openai.api_key:
+        # API キーがない場合は安全側で False
+        print("⚠️  OpenAI API キー未設定のため自動関連判定をスキップします。")
+        return False
 
-    test_urls = [
-        "https://www.city.ama.aichi.jp/kurashi/toshikeikaku/toshikeikaku/1004481.html",
-        "https://example.com/blog/my-trip-to-ama-city",
-        "https://www.pref.aichi.jp/soshiki/toshikeikaku/000000000.html",
-        "https://suumo.jp/chintai/aichi/sc_amashi/"
-    ]
-    test_keywords = ["都市計画", "用途地域", "建蔽率", "容積率"]
-    
-    for url in test_urls:
-        relevance = is_link_relevant(url, test_keywords, OPENAI_API_KEY)
-        print(f"URL: {url}\nIs Relevant: {relevance}\n")
+    prompt = (
+        "以下の URL は、次の都市に関する都市計画情報"
+        "（用途地域・建蔽率・容積率・開発指導要綱・建築基準法など）を含むページですか？\n"
+        f"都市: {city}\n"
+        f"URL: {url}\n\n"
+        "「はい」なら true、「いいえ」なら false だけを出力してください。"
+    )
+    try:
+        resp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1,
+            temperature=0.0,
+        )
+        answer = resp.choices[0].message.content.strip().lower()
+        return answer.startswith("t")  # true / false
+    except Exception as e:
+        print(f"OpenAI API 呼び出しでエラー: {e}")
+        # エラー時は無関係扱い
+        return False
