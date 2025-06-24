@@ -7,6 +7,7 @@ import os, time
 from pathlib import Path
 from urllib.parse import urlparse
 import urllib3
+import tldextract
 from dotenv import load_dotenv
 
 from .search_google import build_query, search_links
@@ -57,14 +58,15 @@ def run_analysis_for_city(city: str) -> dict:
     pdf_downloads = []
     processed_count = 0
     
+    # 🔧 修复域名过滤问题：使用与本地版本一致的方式提取域名
+    base_domain = tldextract.extract(seed_links[0]).registered_domain if seed_links else ""
+    print(f"🏠 Base domain for filtering: {base_domain}")
+    
     # 与本地版本一致的处理逻辑
     for url in crawled_links:
         if processed_count >= 30:  # 与本地版本一致的max_links限制
             print(f"Reached max_links limit of 30. Stopping processing.")
             break
-
-        # 提取base_domain用于过滤
-        base_domain = urlparse(seed_links[0]).netloc if seed_links else ""
         
         if not is_link_relevant(url, city, base_domain, OPENAI_API_KEY):
             print(f"❌ [Filter] Skipping irrelevant link: {url}")
