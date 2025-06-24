@@ -7,3 +7,4 @@ beautifulsoup4
 tldextract
 google-cloud-vision
 pypdf
+jinja2>=3.1.3
