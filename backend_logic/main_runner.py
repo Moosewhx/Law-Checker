@@ -66,11 +66,12 @@ def run_analysis_for_city(city: str) -> dict:
     relevant_links = []
     print("\n関連リンクを選別中...")
     for link in all_links:
-        if is_link_relevant(link, city, base_domain, openai_api_key):
-            print(f"✅ 関連: {link}")
-            relevant_links.append(link)
-        else:
-            print(f"❌ 無関係: {link}")
+    # city, base_domain, openai_api_key の 4 引数を渡す
+    if is_link_relevant(link, city, base_domain, openai_api_key):
+        print(f"✅ 関連: {link}")
+        relevant_links.append(link)
+    else:
+        print(f"❌ 無関係: {link}")
     print(f"\n抽出された関連リンク: {len(relevant_links)} 件")
 
     # 4) PDF ダウンロード & 要約
