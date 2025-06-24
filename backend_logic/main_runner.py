@@ -1,10 +1,12 @@
-# backend_logic/main_runner.py
-# --------------------------------
+"""都市計画関連ドキュメントを検索・要約してレポート化するメインモジュール。"""
+from __future__ import annotations
+
 import os
-from dotenv import load_dotenv
 from pathlib import Path
-import httpx
 from urllib.parse import urlparse
+
+from dotenv import load_dotenv
+import httpx
 import tldextract
 
 from .search_google import build_query, search_links
@@ -17,16 +19,12 @@ from .summarizer import (
     generate_sources_txt,
 )
 
-# Vision API 初期化でサービスアカウント JSON を読む想定
-from google.cloud import vision_v1 as vision  # noqa: F401
-
 # --------------------------------------------------
 
 
 def run_analysis_for_city(city: str) -> dict:
     """都市計画関連情報を収集・要約し、レポートを返す。"""
     load_dotenv()
-    print("DEBUG-OPENAI:", repr(os.getenv("OPENAI_API_KEY")))
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
@@ -62,28 +60,27 @@ def run_analysis_for_city(city: str) -> dict:
     all_links = bfs(seed_links, base_domain, max_depth=1, max_total=max_links_to_crawl)
     print(f"🔗 クロール完了: {len(all_links)} 件")
 
-    # 3) AI フィルタ
-    relevant_links = []
+    # 3) AI フィルタリング
+    relevant_links: list[str] = []
     print("\n関連リンクを選別中...")
     for link in all_links:
-    # city, base_domain, openai_api_key の 4 引数を渡す
-    if is_link_relevant(link, city, base_domain, openai_api_key):
-        print(f"✅ 関連: {link}")
-        relevant_links.append(link)
-    else:
-        print(f"❌ 無関係: {link}")
+        if is_link_relevant(link, city, base_domain, openai_api_key):
+            print(f"✅ 関連: {link}")
+            relevant_links.append(link)
+        else:
+            print(f"❌ 無関係: {link}")
     print(f"\n抽出された関連リンク: {len(relevant_links)} 件")
 
     # 4) PDF ダウンロード & 要約
     pdf_dir = Path("downloaded_pdfs")
     pdf_dir.mkdir(exist_ok=True)
 
-    findings = []
-    ext_links = []
+    findings: list[dict] = []
+    ext_links: list[dict] = []
 
     with httpx.Client(timeout=30.0, follow_redirects=True, verify=False) as client:
         for link in relevant_links:
-            pdf_path = download_pdf_if_available(link, pdf_dir)
+            pdf_path = download_pdf_if_available(link, pdf_dir, client=client)
             target = pdf_path if pdf_path else link
 
             print(f"\n要約処理: {target}")
@@ -108,6 +105,10 @@ def run_analysis_for_city(city: str) -> dict:
     generate_sources_txt(findings, ext_links, sources_report_path)
 
     return {
-        "zone_report": zone_report_path.read_text(encoding="utf-8"),
-        "sources_report": sources_report_path.read_text(encoding="utf-8"),
+        "zone_report": zone_report_path.read_text(encoding="utf-8")
+        if zone_report_path.exists()
+        else "用途地域レポート生成失敗",
+        "sources_report": sources_report_path.read_text(encoding="utf-8")
+        if sources_report_path.exists()
+        else "データソースレポート生成失敗",
     }
