@@ -1,41 +1,33 @@
-from urllib.parse import urlparse
+import tldextract
+import httpx
+import urllib3
 from openai import OpenAI
-import tldextract, os, re
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def is_link_relevant(url: str, city: str, base_domain: str, api_key: str) -> bool:
-    """
-    ① URL か title に建築系キーワードが含まれるなら即 True
-    ② それでも判断つかない場合だけ GPT に尋ねる（本地版と同じ）
-    """
-    # ドメイン制限なし（ローカル版仕様）
-    key_patterns = [
-        r"用途地域",
-        r"都市計画図",
-        r"建蔽率",
-        r"容積率",
-        r"開発指導要綱",
-        r"建築基準法",
-        r"toshikeikaku",
-        r"youto",
-    ]
-    if any(re.search(p, url, re.I) for p in key_patterns):
-        return True
+_SYS = (
+    "あなたは都市計画担当者です。目的は、指定された市における建蔽率、容積率、高さ制限のような「具体的な数値」を伴う建築規制を見つけることです。"
+    "以下のURLの内容は、こうした具体的な数値規制を含んだ詳細な条例や要綱ですか？それとも、概要、ニュース、一般的な計画書など、数値規制を含まない資料ですか？"
+    "具体的な数値規制を含む資料なら『はい』、そうでなければ『いいえ』とだけ返答してください。"
+)
 
-    client = OpenAI(api_key=api_key)
-    prompt = (
-        f"{city} に関する都市計画・用途地域情報を含むページですか？\n"
-        f"URL: {url}\n"
-        "はい/いいえ で答えてください。"
-    )
+def _same_reg_domain(url, base):
+    return tldextract.extract(url).registered_domain == tldextract.extract(base).registered_domain
+
+def is_link_relevant(url: str, city: str, base_domain: str, key: str) -> bool:
+    if not _same_reg_domain(url, base_domain):
+        return False
+    
     try:
-        resp = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1,
-            temperature=0.0,
+        cli = OpenAI(api_key=key, http_client=httpx.Client(verify=False))
+        rsp = cli.chat.completions.create(
+            model="o3",
+            messages=[
+                {"role": "system", "content": _SYS},
+                {"role": "user", "content": f"市: {city}\nURL: {url}"}
+            ]
         )
-        return resp.choices[0].message.content.strip().lower().startswith("はい")
+        return "はい" in rsp.choices[0].message.content.strip()
     except Exception as e:
-        print("GPT 判定失敗:", e)
+        print(f"GPT filter error for {url}: {e}")
         return False
