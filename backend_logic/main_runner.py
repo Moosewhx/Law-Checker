@@ -75,25 +75,27 @@ def run_analysis_for_city(city: str) -> dict:
     all_links = bfs(seed_links, base_domain, max_depth=2, max_total=30)
     print("🔗 Crawled to", len(all_links), "total unique links (including seeds).")
 
-    pdf_dir = Path("downloaded_pdfs"); pdf_dir.mkdir(exist_ok=True)
+   pdf_dir = Path("downloaded_pdfs"); pdf_dir.mkdir(exist_ok=True)
     reports_dir = Path("generated_reports"); reports_dir.mkdir(exist_ok=True)
 
     findings, ext_links, pdf_urls = [], [], []
 
-    for idx, link in enumerate(all_links, 1):
-        if not is_link_relevant(link, city, base_domain, OPENAI_API_KEY):
-            print("❌ [Filter] Skipping:", link); continue
-        print(f"✅ [Extract] ({idx}/30):", link)
+    # ★ httpx.Client を 1 回だけ生成し download に渡す
+    with httpx.Client(timeout=20.0, verify=False) as client:
+        for idx, link in enumerate(all_links, 1):
+            if not is_link_relevant(link, city, base_domain, OPENAI_API_KEY):
+                print("❌ [Filter] Skipping:", link); continue
+            print(f"✅ [Extract] ({idx}/30):", link)
 
-        pdf_path = download_pdf_if_available(link, pdf_dir)
-        body = _pdf_text(pdf_path) if pdf_path else _html_text(link)
-        doc_key = str(pdf_path) if pdf_path else link
-        if pdf_path:
-            pdf_urls.append(f"/files/{pdf_path.name}")
+            pdf_path = download_pdf_if_available(link, pdf_dir, client)  # ← 修正
+            body = _pdf_text(pdf_path) if pdf_path else _html_text(link)
+            doc_key = str(pdf_path) if pdf_path else link
+            if pdf_path:
+                pdf_urls.append(f"/files/{pdf_path.name}")
 
-        summary = summarize_text_from_url_or_pdf(
-            doc_key, body, OPENAI_API_KEY, "o3"
-        )
+            summary = summarize_text_from_url_or_pdf(
+                doc_key, body, OPENAI_API_KEY, "o3"
+            )
         try:
             obj = json.loads(summary) if summary else {}
             findings.extend(obj.get("findings", []))
