@@ -1,7 +1,7 @@
 import os
 from googleapiclient.discovery import build
 
-def get_Google Search_service():
+def get_google_search_service:
     """
     建立並返回 Google Search Service 物件。
     它會自動使用 initialize_credentials 設定好的憑證。
