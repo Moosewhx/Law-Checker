@@ -8,12 +8,12 @@ const startButton = document.getElementById('startButton');
 async function startAnalysis() {
     const city = cityInput.value;
     if (!city) {
-        alert('請輸入城市名稱！');
+        alert('都市名を入力してください！');
         return;
     }
 
     startButton.disabled = true;
-    statusDiv.textContent = '處理中，請稍候... 由於需要執行複雜的分析，這可能會花費數分鐘時間，請不要關閉此頁面。';
+    statusDiv.textContent = '処理中です。しばらくお待ちください... 複雑な分析を実行するため、数分かかる場合があります。このページを閉じないでください。';
     statusDiv.style.color = 'blue';
     resultsDiv.style.display = 'none';
 
@@ -27,20 +27,20 @@ async function startAnalysis() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: '發生未知伺服器錯誤' }));
+            const errorData = await response.json().catch(() => ({ detail: '不明なサーバーエラーが発生しました' }));
             throw new Error(errorData.detail);
         }
 
         const data = await response.json();
 
-        statusDiv.textContent = '分析完成！';
+        statusDiv.textContent = '分析完了！';
         statusDiv.style.color = 'green';
         resultsDiv.style.display = 'block';
         zoneReportPre.textContent = data.zone_report;
         sourcesReportPre.textContent = data.sources_report;
 
     } catch (error) {
-        statusDiv.textContent = `錯誤: ${error.message}`;
+        statusDiv.textContent = `エラー: ${error.message}`;
         statusDiv.style.color = 'red';
     } finally {
         startButton.disabled = false;
