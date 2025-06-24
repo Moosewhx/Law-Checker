@@ -24,7 +24,7 @@ def is_link_relevant(
     api_key: str,
 ) -> bool:
     """
-    指定 URL が「city の都市計画関連情報」を含むか AI で判定する。
+    指定 URL が『city の都市計画関連情報』を含むか AI で判定する。
 
     Parameters
     ----------
@@ -42,15 +42,14 @@ def is_link_relevant(
     bool
         関連していれば True、無関係なら False。
     """
-    # 1) 同一ドメインチェック（スパムサイトへ飛び過ぎないための早期フィルタ）
+    # 1) 同一ドメインチェック（早期フィルタ）
     if not _same_registered_domain(url, base_domain):
         return False
 
     # 2) OpenAI による内容判定
     openai.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
     if not openai.api_key:
-        # API キーがない場合は安全側で False
-        print("⚠️  OpenAI API キー未設定のため自動関連判定をスキップします。")
+        print("⚠️  OpenAI API キー未設定のため関連判定をスキップ")
         return False
 
     prompt = (
@@ -60,6 +59,7 @@ def is_link_relevant(
         f"URL: {url}\n\n"
         "「はい」なら true、「いいえ」なら false だけを出力してください。"
     )
+
     try:
         resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -70,6 +70,5 @@ def is_link_relevant(
         answer = resp.choices[0].message.content.strip().lower()
         return answer.startswith("t")  # true / false
     except Exception as e:
-        print(f"OpenAI API 呼び出しでエラー: {e}")
-        # エラー時は無関係扱い
+        print(f"OpenAI API 呼び出しエラー: {e}")
         return False
