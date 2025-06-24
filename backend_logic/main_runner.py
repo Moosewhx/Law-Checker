@@ -73,11 +73,16 @@ def run_analysis_for_city(city: str) -> dict:
 
     findings: list[dict] = []
     ext_links: list[dict] = []
+    pdf_links: list[str] = []  # クライアントへ返すダウンロード URL
 
     with httpx.Client(timeout=30.0, follow_redirects=True, verify=False) as client:
         for link in relevant_links:
             pdf_path = download_pdf_if_available(link, pdf_dir, client=client)
             target = pdf_path if pdf_path else link
+
+            # PDF 取得成功ならファイル URL 追加
+            if pdf_path:
+                pdf_links.append(f"/files/{pdf_path.name}")
 
             print(f"\n要約処理: {target}")
             summary = summarize_text_from_url_or_pdf(
@@ -107,4 +112,5 @@ def run_analysis_for_city(city: str) -> dict:
         "sources_report": sources_report_path.read_text(encoding="utf-8")
         if sources_report_path.exists()
         else "データソースレポート生成失敗",
+        "pdf_download_urls": pdf_links,
     }
