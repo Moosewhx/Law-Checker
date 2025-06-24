@@ -25,28 +25,12 @@ def is_link_relevant(
 ) -> bool:
     """
     指定 URL が『city の都市計画関連情報』を含むか AI で判定する。
-
-    Parameters
-    ----------
-    url : str
-        判定対象の URL。
-    city : str
-        市区町村名（例: "横浜市"）。
-    base_domain : str
-        クロール対象の登録ドメイン（example.co.jp など）。
-    api_key : str
-        OpenAI API キー。
-
-    Returns
-    -------
-    bool
-        関連していれば True、無関係なら False。
     """
-    # 1) 同一ドメインチェック（早期フィルタ）
+    # 1) 同一ドメイン早期フィルタ
     if not _same_registered_domain(url, base_domain):
         return False
 
-    # 2) OpenAI による内容判定
+    # 2) OpenAI で内容判定
     openai.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
     if not openai.api_key:
         print("⚠️  OpenAI API キー未設定のため関連判定をスキップ")
