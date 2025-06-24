@@ -1,19 +1,11 @@
 from pathlib import Path
 import traceback
-import os
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-
-# 在導入其他模組之前初始化 Google 憑證
-try:
-    from backend_logic.initialize_credentials import initialize_google_credentials
-    initialize_google_credentials()
-except Exception as e:
-    print(f"Google 憑證初始化失敗: {e}")
 
 from backend_logic.main_runner import run_analysis_for_city
 
