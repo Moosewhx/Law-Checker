@@ -8,3 +8,7 @@ tldextract
 google-cloud-vision
 pypdf
 jinja2>=3.1.3
+PyMuPDF
+Pillow
+requests
+urllib3
