@@ -1,43 +1,30 @@
-"""
-URL が PDF ならダウンロードし、Path を返す。
-それ以外は None を返す（ローカル版仕様に合わせ client/dir を引数化）。
-"""
-from __future__ import annotations
-from pathlib import Path
+import os
+import requests
+import urllib3
 from urllib.parse import urlparse
-import httpx, shutil, re
+from pathlib import Path
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-_PDF_RE = re.compile(r"\.pdf$", re.I)
-
-
-def _is_pdf_url(url: str) -> bool:
-    return bool(_PDF_RE.search(urlparse(url).path))
-
-
-def download_pdf_if_available(
-    url: str,
-    save_dir: Path,
-    client: httpx.Client,
-) -> Path | None:
-    """PDF の場合ダウンロードし、Path を返す。非 PDF は None。"""
-    if not _is_pdf_url(url):
+def download_pdf_if_available(url: str, save_dir: str = "downloaded_pdfs") -> str | None:
+    if not url.lower().endswith(".pdf"):
         return None
 
-    filename = Path(urlparse(url).path).name or "file.pdf"
-    dest = save_dir / filename
-    if dest.exists():
-        print("PDF already exists, skipping download:", dest.name)
-        return dest
+    os.makedirs(save_dir, exist_ok=True)
+    fname = os.path.basename(urlparse(url).path)
+    path = os.path.join(save_dir, fname)
+
+    if os.path.exists(path):
+        print(f"PDF already exists, skipping download: {path}")
+        return path
 
     try:
-        r = client.get(url, timeout=30.0, follow_redirects=True)
-        r.raise_for_status()
-        with dest.open("wb") as f:
-            shutil.copyfileobj(r.raw, f)
-        return dest
-    except Exception as e:
-        print("⚠️ PDF download failed:", url, e)
-        if dest.exists():
-            dest.unlink(missing_ok=True)
+        res = requests.get(url, timeout=20, verify=False)
+        res.raise_for_status()
+        with open(path, "wb") as f:
+            f.write(res.content)
+        print(f"Successfully downloaded {fname}")
+        return path
+    except requests.exceptions.RequestException as e:
+        print(f"PDF download error for {url}: {e}")
         return None
