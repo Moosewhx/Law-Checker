@@ -19,8 +19,6 @@ from .summarizer import (
     generate_sources_txt,
 )
 
-# --------------------------------------------------
-
 
 def run_analysis_for_city(city: str) -> dict:
     """都市計画関連情報を収集・要約し、レポートを返す。"""
@@ -30,7 +28,7 @@ def run_analysis_for_city(city: str) -> dict:
     if not openai_api_key:
         raise RuntimeError("環境変数 OPENAI_API_KEY が設定されていません。")
 
-    # --- 検索キーワード定義 ---
+    # 検索キーワード
     keywords = [
         "都市計画図",
         "用途地域",
@@ -43,24 +41,22 @@ def run_analysis_for_city(city: str) -> dict:
     max_links_to_crawl = 20
     extractor_model = "o3"
 
-    # 1) 検索クエリ生成 & Serper 検索
+    # 1) 検索
     query = build_query(city, keywords)
     print(f"🔍 検索クエリ: {query}")
     seed_links = search_links(query, num_results=max_search_results)
     print(f"🌱 シードリンク取得: {len(seed_links)} 件")
-
     if not seed_links:
         return {"error": "シードリンクが見つかりませんでした。"}
 
+    # 2) クロール
     first_domain = urlparse(seed_links[0]).netloc
     base_domain = tldextract.extract(first_domain).registered_domain
     print(f"🔗 クロール対象ドメイン: {base_domain}")
-
-    # 2) ドメイン内クロール
     all_links = bfs(seed_links, base_domain, max_depth=1, max_total=max_links_to_crawl)
     print(f"🔗 クロール完了: {len(all_links)} 件")
 
-    # 3) AI フィルタリング
+    # 3) AI フィルタ
     relevant_links: list[str] = []
     print("\n関連リンクを選別中...")
     for link in all_links:
