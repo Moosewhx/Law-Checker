@@ -1,9 +1,11 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-google-api-python-client
-httpx[http2]
-beautifulsoup4
 openai
-tldextract
 pypdf
+httpx
+beautifulsoup4
+tldextract
+google-cloud-vision
+google-api-python-client
+oauth2client
