@@ -1,4 +1,5 @@
 from pathlib import Path
+import traceback
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -91,4 +92,5 @@ def run_analysis(req: AnalysisRequest):
     try:
         return run_analysis_for_city(city=req.city)
     except Exception as e:
+        print(traceback.format_exc())  
         raise HTTPException(status_code=500, detail=str(e))
