@@ -26,6 +26,7 @@ from google.cloud import vision_v1 as vision  # noqa: F401
 def run_analysis_for_city(city: str) -> dict:
     """都市計画関連情報を収集・要約し、レポートを返す。"""
     load_dotenv()
+    print("DEBUG-OPENAI:", repr(os.getenv("OPENAI_API_KEY")))
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
