@@ -1,8 +1,8 @@
 """
 FastAPI 用: 市区町村を受け取り、都市計画関連 PDF/HTML を収集・要約して
 レポートと PDF ダウンロード URL を返す。
-ローカル版 main.py のロジックを踏襲し、外部関数 _pdf_text/_html_text へは依存しない。
 """
+
 from __future__ import annotations
 import os, time, json
 from pathlib import Path
@@ -19,10 +19,8 @@ from .link_crawler import bfs
 from .pdf_downloader import download_pdf_if_available
 from .summarizer import summarize_text_from_url_or_pdf
 
-
-# ===================== テキスト抽出ユーティリティ ===================== #
+# ---------------------- テキスト抽出 ---------------------- #
 def _pdf_text(pdf_path: Path) -> str:
-    """PDF から全ページ文字列を取得（非常に単純な実装）。"""
     try:
         reader = PdfReader(str(pdf_path))
         return "\n".join(p.extract_text() or "" for p in reader.pages)
@@ -32,7 +30,6 @@ def _pdf_text(pdf_path: Path) -> str:
 
 
 def _html_text(url: str) -> str:
-    """HTML から <body> テキストを抜粋。"""
     try:
         r = httpx.get(url, timeout=20.0, verify=False)
         soup = BeautifulSoup(r.text, "html.parser")
@@ -40,18 +37,16 @@ def _html_text(url: str) -> str:
     except Exception as e:
         print(f"HTML 取得失敗: {e}")
         return ""
-# ==================================================================== #
+# --------------------------------------------------------- #
 
 
 def _generate_zone_regulations_txt(findings: list[dict], path: Path):
-    """用途地域レポートを生成（簡易版）。"""
     with path.open("w", encoding="utf-8") as f:
         for item in findings:
-            f.write(f"- {item.get('finding', '')}\n")
+            f.write(f"- {item.get('finding','')}\n")
 
 
 def _generate_sources_txt(findings: list[dict], ext_links: list[dict], path: Path):
-    """データソースレポートを生成（簡易版）。"""
     with path.open("w", encoding="utf-8") as f:
         f.write("### Findings\n")
         for item in findings:
@@ -61,7 +56,6 @@ def _generate_sources_txt(findings: list[dict], ext_links: list[dict], path: Pat
             f.write(f"{item.get('external_link','')}\n")
 
 
-# ===================== メイン関数 ===================== #
 def run_analysis_for_city(
     city: str,
     *,
@@ -75,20 +69,19 @@ def run_analysis_for_city(
     load_dotenv()
 
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not OPENAI_API_KEY or not SERPER_API_KEY:
-        raise RuntimeError("環境変数 OPENAI_API_KEY と SERPER_API_KEY が必要です。")
+    if not OPENAI_API_KEY:
+        raise RuntimeError("環境変数 OPENAI_API_KEY が必要です。")
 
     keywords = keywords_csv.split(",")
     query = build_query(city, keywords)
     print(f"🔍 検索クエリ: {query}")
 
-    seed_links = search_links(query, SERPER_API_KEY, num_results=max_search_results)
+    # ★ 修正: API キーを渡さず、キーワードと件数だけ渡す
+    seed_links = search_links(query, num_results=max_search_results)
     print(f"🌱 シードリンク: {len(seed_links)} 件")
     if not seed_links:
         return {"error": "シードリンクを取得できませんでした。"}
 
-    # クロール対象ドメイン
     first_domain = urlparse(seed_links[0]).netloc
     base_domain = first_domain or urlparse(seed_links[0]).hostname
     print(f"🔗 クロール対象: {base_domain}")
@@ -111,13 +104,10 @@ def run_analysis_for_city(
 
         pdf_path = download_pdf_if_available(url, pdf_dir)
         doc_key = str(pdf_path) if pdf_path else url
-
-        # 本文抽出
         content = _pdf_text(pdf_path) if pdf_path else _html_text(url)
         if pdf_path:
             pdf_urls.append(f"/files/{pdf_path.name}")
 
-        # GPT 要約
         summary = summarize_text_from_url_or_pdf(
             doc_key, content, OPENAI_API_KEY, extractor_model
         )
@@ -132,9 +122,8 @@ def run_analysis_for_city(
         if len(findings) >= max_links_to_crawl:
             break
 
-        time.sleep(1.2)  # API レート制御
+        time.sleep(1.2)
 
-    # レポート生成
     reports_dir = Path("generated_reports")
     reports_dir.mkdir(exist_ok=True)
     zone_path = reports_dir / "zone_regulations_report.txt"
