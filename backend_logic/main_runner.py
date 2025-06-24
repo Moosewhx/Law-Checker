@@ -10,7 +10,7 @@ import tldextract
 # 導入所有需要的模組
 from .initialize_credentials import initialize_google_credentials
 # --- 修正：這裡的函式名稱不應有空格或大寫 ---
-from .search_google import build_query, search_links, get_Google Search_service
+from .search_google import build_query, search_links, get_google_search_service
 # --- 修正結束 ---
 from .ai_filter import is_link_relevant
 from .link_crawler import bfs
