@@ -21,7 +21,6 @@ def run_analysis_for_city(city: str) -> dict:
     if not all([OPENAI_API_KEY, SERPER_API_KEY]):
         raise ValueError("API keys for OpenAI and Serper must be set as environment variables.")
     
-    # Default parameters
     keywords_str = "都市計画図,用途地域,建蔽率,容積率,開発指導要綱,建築基準法"
     keywords = keywords_str.split(',')
     max_search_results = 10
@@ -34,7 +33,7 @@ def run_analysis_for_city(city: str) -> dict:
     print(f"🌱 Found {len(seed_links)} seed links.")
 
     if not seed_links:
-        return {"error": "No seed links found. Exiting."}
+        return {"error": "シードリンクが見つかりませんでした。処理を終了します。"}
 
     first_link_domain = urlparse(seed_links[0]).netloc
     base_domain_str = tldextract.extract(first_link_domain).registered_domain
@@ -87,8 +86,8 @@ def run_analysis_for_city(city: str) -> dict:
     generate_sources_txt(all_extracted_findings, all_extracted_external_links, sources_report_path)
 
     final_result = {
-        "zone_report": zone_report_path.read_text(encoding='utf-8') if zone_report_path.exists() else "Zone report could not be generated.",
-        "sources_report": sources_report_path.read_text(encoding='utf-8') if sources_report_path.exists() else "Sources report could not be generated."
+        "zone_report": zone_report_path.read_text(encoding='utf-8') if zone_report_path.exists() else "用途地域レポートを生成できませんでした。",
+        "sources_report": sources_report_path.read_text(encoding='utf-8') if sources_report_path.exists() else "データソースレポートを生成できませんでした。"
     }
 
     return final_result
