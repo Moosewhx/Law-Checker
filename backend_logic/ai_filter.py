@@ -1,22 +1,20 @@
-"""リンクが都市計画情報かどうかを判定するユーティリティ。"""
+"""リンクが都市計画情報かどうかを判定するユーティリティ（openai-python ≥ 1.0 対応版）。"""
 from __future__ import annotations
 
 import os
 from urllib.parse import urlparse
 
-import openai
+from openai import OpenAI
 import tldextract
 
 
-# ---------------------- 内部ヘルパ ---------------------- #
 def _same_registered_domain(url: str, base_domain: str) -> bool:
-    """登録ドメイン（example.co.jp など）が一致するか判定する。"""
+    """登録ドメイン（example.co.jp など）が一致するか判定。"""
     netloc = urlparse(url).netloc
     reg = tldextract.extract(netloc).registered_domain
     return reg == base_domain
 
 
-# ------------------ パブリックインターフェース ------------------ #
 def is_link_relevant(
     url: str,
     city: str,
@@ -24,18 +22,19 @@ def is_link_relevant(
     api_key: str,
 ) -> bool:
     """
-    指定 URL が『city の都市計画関連情報』を含むか AI で判定する。
+    指定 URL が『city の都市計画関連情報』を含むか GPT で判定。
+    True: 関連あり / False: 無関係
     """
-    # 1) 同一ドメイン早期フィルタ
+    # 1) ドメイン一致フィルタ
     if not _same_registered_domain(url, base_domain):
         return False
 
-    # 2) OpenAI で内容判定
-    openai.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
-    if not openai.api_key:
-        print("⚠️  OpenAI API キー未設定のため関連判定をスキップ")
+    # 2) GPT 判定
+    api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
         return False
 
+    client = OpenAI(api_key=api_key)
     prompt = (
         "以下の URL は、次の都市に関する都市計画情報"
         "（用途地域・建蔽率・容積率・開発指導要綱・建築基準法など）を含むページですか？\n"
@@ -45,14 +44,14 @@ def is_link_relevant(
     )
 
     try:
-        resp = openai.ChatCompletion.create(
+        resp = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1,
             temperature=0.0,
         )
         answer = resp.choices[0].message.content.strip().lower()
-        return answer.startswith("t")  # true / false
+        return answer.startswith("t")
     except Exception as e:
-        print(f"OpenAI API 呼び出しエラー: {e}")
+        print(f"OpenAI API エラー: {e}")
         return False
