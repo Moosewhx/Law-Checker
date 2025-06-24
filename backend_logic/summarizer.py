@@ -1,5 +1,6 @@
 import os
 import openai
+import json
 from pypdf import PdfReader
 import httpx
 from bs4 import BeautifulSoup
@@ -117,11 +118,11 @@ def summarize_text_from_url_or_pdf(path, city, api_key, model_choice):
 
 def generate_zone_regulations_txt(all_findings, filename):
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write("Zone Regulations Report\n")
+        f.write("用途地域レポート\n")
         f.write("=========================\n\n")
         
         if not all_findings:
-            f.write("No specific regulations or data points were found.\n")
+            f.write("具体的な規制やデータポイントは見つかりませんでした。\n")
             return
 
         findings_by_source = {}
@@ -132,30 +133,30 @@ def generate_zone_regulations_txt(all_findings, filename):
             findings_by_source[source].append(item['finding'])
             
         for source, findings in findings_by_source.items():
-            f.write(f"Source: {source}\n")
+            f.write(f"ソース: {source}\n")
             for finding in findings:
                 f.write(f"- {finding}\n")
             f.write("\n")
 
 def generate_sources_txt(all_findings, all_external_links, filename):
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write("Data Sources Report\n")
+        f.write("データソースレポート\n")
         f.write("====================\n\n")
         
-        f.write("Primary Sources Analyzed:\n")
+        f.write("分析対象のプライマリソース:\n")
         primary_sources = sorted(list(set(item['source'] for item in all_findings)))
         if not primary_sources:
-            f.write("No primary sources were successfully analyzed.\n")
+            f.write("分析に成功したプライマリソースはありませんでした。\n")
         else:
             for source in primary_sources:
                 f.write(f"- {source}\n")
         
         f.write("\n\n")
         
-        f.write("External Links Found in Documents:\n")
+        f.write("ドキュメント内で発見された外部リンク:\n")
         ext_links = sorted(list(set(item['external_link'] for item in all_external_links)))
         if not ext_links:
-            f.write("No external links were found in the analyzed documents.\n")
+            f.write("分析対象のドキュメントに外部リンクは見つかりませんでした。\n")
         else:
             for link in ext_links:
                 f.write(f"- {link}\n")
