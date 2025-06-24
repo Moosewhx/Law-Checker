@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+google-api-python-client
+httpx[http2]
+beautifulsoup4
+openai
+tldextract
+pypdf
