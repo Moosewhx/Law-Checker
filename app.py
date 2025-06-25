@@ -2,7 +2,7 @@ from pathlib import Path
 import traceback
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -71,10 +71,43 @@ def read_root(request: Request):
         status_code=200,
     )
 
+# 原有的 POST 路由（推荐方式）
 @app.post("/api/run-analysis")
-def run_analysis(req: AnalysisRequest):
+def run_analysis_post(req: AnalysisRequest):
     try:
+        print(f"🏙️ [POST] Processing request for city: {req.city}")
         return run_analysis_for_city(city=req.city)
     except Exception as e:
         print(traceback.format_exc())  
         raise HTTPException(status_code=500, detail=str(e))
+
+# 🔧 添加 GET 路由以处理意外的 GET 请求
+@app.get("/api/run-analysis")
+def run_analysis_get(city: str = None):
+    try:
+        if not city:
+            return JSONResponse(
+                status_code=400, 
+                content={
+                    "error": "GET請求需要 'city' 查詢參數", 
+                    "example": "/api/run-analysis?city=愛知県あま市",
+                    "note": "推奨はPOST方式です"
+                }
+            )
+        print(f"🏙️ [GET] Processing request for city: {city}")
+        return run_analysis_for_city(city=city)
+    except Exception as e:
+        print(traceback.format_exc())  
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 🔧 添加调试路由
+@app.get("/debug/status")
+def debug_status():
+    return {
+        "status": "API is running", 
+        "endpoints": {
+            "POST /api/run-analysis": "正常方式（推奨）",
+            "GET /api/run-analysis?city=xxx": "緊急対応用"
+        },
+        "version": "improved_filter_v1"
+    }
