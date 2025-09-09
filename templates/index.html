@@ -21,6 +21,7 @@
         h1 { 
             color: #0056b3; 
         }
+        .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:.5em 0 1em}
         input[type="text"] { 
             width: 70%; 
             padding: 10px; 
@@ -45,11 +46,14 @@
             background-color: #aaa; 
             cursor: not-allowed; 
         }
+        .btn-secondary{background:#6c757d}
+        .btn-secondary:hover{background:#555}
         #status { 
             margin-top: 1em; 
             padding: 1em; 
             border-radius: 4px; 
             font-weight: bold;
+            background:#f7fbff;
         }
         #results { 
             margin-top: 1em; 
@@ -92,30 +96,63 @@
             border-radius: 4px;
             margin: 1em 0;
         }
+
+        /* Modal */
+        .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:999}
+        .modal.show{display:flex}
+        .modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+        .modal-content{position:relative;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.2);width:min(900px,92vw);max-height:86vh;display:flex;flex-direction:column}
+        .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
+        .modal-body{padding:16px;overflow:auto}
+        .icon-btn{background:transparent;color:#333;border:1px solid #ddd;border-radius:6px;padding:8px 12px}
+        .icon-btn:hover{background:#f5f5f5}
+        .accordion-toggle{width:100%;text-align:left;background:#f7f9fc;border:1px solid #e6edf5;color:#333;border-radius:6px;padding:10px 12px;margin:8px 0;cursor:pointer}
+        .accordion-panel{display:none;padding:8px 4px 4px}
+        .accordion-panel.show{display:block}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>建築法規関連リンク検索システム</h1>
-        <p>検索したい日本の都市名を入力してください（例：愛知県あま市）。</p>
-        <p><strong>機能：</strong> AI を使用して建築規制に関連性の高いリンクを自動判定し、PDF ファイルを自動ダウンロードします。</p>
-        
-        <input type="text" id="cityInput" size="50" value="愛知県あま市" placeholder="都市名を入力してください">
-        <button id="startButton" onclick="startAnalysis()">検索開始</button>
+        <p style="margin:.6em 0 1em">検索したい日本の都市名を入力してください（例：愛知県あま市）。</p>
+        <div class="controls">
+            <input type="text" id="cityInput" size="50" value="愛知県あま市" placeholder="都市名を入力してください">
+            <button id="startButton" onclick="startAnalysis()">検索開始</button>
+            <button id="toggleDetailsBtn" class="btn-secondary" disabled>詳細を表示</button>
+        </div>
 
         <div id="status">検索待機中...</div>
+        <div id="summary" class="stats" style="display:none"></div>
         
-        <div id="results">
-            <div class="section">
-                <div id="report"></div>
+        <!-- Results container kept for compatibility but hidden by default -->
+        <div id="results" style="display:none">
+            <div class="section" style="display:none"><div id="report"></div></div>
+            <div class="section" style="display:none"><div id="links"></div></div>
+            <div class="section" style="display:none"><div id="pdfs"></div></div>
+        </div>
+    </div>
+    
+    <!-- Details Modal -->
+    <div id="detailsModal" class="modal" aria-hidden="true">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0">検索結果の詳細</h3>
+                <button id="modalClose" class="icon-btn">閉じる</button>
             </div>
-            
-            <div class="section">
-                <div id="links"></div>
-            </div>
-            
-            <div class="section">
-                <div id="pdfs"></div>
+            <div class="modal-body">
+                <button class="accordion-toggle" data-target="#acc-stats">処理統計</button>
+                <div id="acc-stats" class="accordion-panel">
+                    <div id="modalStats"></div>
+                </div>
+                <button class="accordion-toggle" data-target="#acc-links">関連性の高いリンク</button>
+                <div id="acc-links" class="accordion-panel">
+                    <div id="modalLinks"></div>
+                </div>
+                <button class="accordion-toggle" data-target="#acc-pdfs">ダウンロード済みPDF</button>
+                <div id="acc-pdfs" class="accordion-panel">
+                    <div id="modalPdfs"></div>
+                </div>
             </div>
         </div>
     </div>

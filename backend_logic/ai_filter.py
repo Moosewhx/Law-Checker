@@ -59,7 +59,7 @@ def is_link_relevant(url: str, city: str, base_domain: str, key: str) -> bool:
     try:
         cli = OpenAI(api_key=key, http_client=httpx.Client(verify=False))
         rsp = cli.chat.completions.create(
-            model="o3",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": _SYS},
                 {"role": "user", "content": f"市: {city}\nURL: {url}"}

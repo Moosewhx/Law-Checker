@@ -5,6 +5,52 @@ const reportDiv = document.getElementById('report');
 const linksDiv = document.getElementById('links');
 const pdfsDiv = document.getElementById('pdfs');
 const startButton = document.getElementById('startButton');
+const toggleDetailsBtn = document.getElementById('toggleDetailsBtn');
+const summaryDiv = document.getElementById('summary');
+
+// Modal elements for compact UI
+const detailsModal = document.getElementById('detailsModal');
+const modalClose = document.getElementById('modalClose');
+const modalLinks = document.getElementById('modalLinks');
+const modalPdfs = document.getElementById('modalPdfs');
+const modalStats = document.getElementById('modalStats');
+
+// Hide legacy sections; we will use a modal for details
+const reportSection = reportDiv ? reportDiv.closest('.section') : null;
+const linksSection = linksDiv ? linksDiv.closest('.section') : null;
+const pdfsSection = pdfsDiv ? pdfsDiv.closest('.section') : null;
+if (reportSection) { reportSection.style.display = 'none'; }
+if (linksSection) { linksSection.style.display = 'none'; }
+if (pdfsSection) { pdfsSection.style.display = 'none'; }
+
+function openModal(){
+    if (!detailsModal) return;
+    detailsModal.classList.add('show');
+    detailsModal.setAttribute('aria-hidden','false');
+}
+function closeModal(){
+    if (!detailsModal) return;
+    detailsModal.classList.remove('show');
+    detailsModal.setAttribute('aria-hidden','true');
+}
+if (toggleDetailsBtn){
+    toggleDetailsBtn.addEventListener('click', openModal);
+}
+if (modalClose){
+    modalClose.addEventListener('click', closeModal);
+}
+if (detailsModal){
+    detailsModal.addEventListener('click', (e)=>{
+        if (e.target.classList.contains('modal-backdrop')) closeModal();
+    });
+    detailsModal.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.accordion-toggle');
+        if (!btn) return;
+        const sel = btn.getAttribute('data-target');
+        const panel = detailsModal.querySelector(sel);
+        if (panel) panel.classList.toggle('show');
+    });
+}
 
 async function startAnalysis() {
     const city = cityInput.value.trim();
@@ -17,6 +63,12 @@ async function startAnalysis() {
     statusDiv.textContent = '処理中です。関連リンクを検索・フィルタリングしています... 10-15分かかる場合があります。ページを閉じないでください。';
     statusDiv.style.color = 'blue';
     resultsDiv.style.display = 'none';
+    // Ensure legacy sections stay hidden; reset summary and modal content
+    if (reportSection) reportSection.style.display = 'none';
+    if (linksSection) linksSection.style.display = 'none';
+    if (pdfsSection) pdfsSection.style.display = 'none';
+    if (summaryDiv) { summaryDiv.style.display = 'none'; summaryDiv.innerHTML = ''; }
+    if (toggleDetailsBtn) toggleDetailsBtn.disabled = true;
 
     // 创建一个AbortController来处理超时 - 延长到18分钟
     const controller = new AbortController();
@@ -53,57 +105,39 @@ async function startAnalysis() {
         statusDiv.textContent = `分析完了！${data.summary || '処理が完了しました'}`;
         statusDiv.style.color = 'green';
         resultsDiv.style.display = 'block';
-        
-        // 显示报告
-        if (data.report) {
-            reportDiv.innerHTML = markdownToHtml(data.report);
-        } else {
-            reportDiv.innerHTML = '<p>レポートデータがありません</p>';
-        }
-        
-        // 显示相关链接
+        if (toggleDetailsBtn) toggleDetailsBtn.disabled = false;
+        // Fill modal: relevant links
         if (data.relevant_links && data.relevant_links.length > 0) {
-            let linksHtml = '<h3>関連性の高いリンク</h3><ul>';
-            data.relevant_links.forEach((link, index) => {
-                linksHtml += `<li>
-                    <strong>${link.type || 'UNKNOWN'}</strong>: 
-                    <a href="${link.url}" target="_blank" rel="noopener">${link.url}</a>
-                    ${link.downloaded ? ` <span style="color: green;">[ダウンロード済み]</span>` : ''}
-                </li>`;
+            let linksHtml = '<ul>';
+            data.relevant_links.forEach((link) => {
+                linksHtml += `<li><strong>${link.type || 'UNKNOWN'}</strong>: <a href="${link.url}" target="_blank" rel="noopener">${link.url}</a>${link.downloaded ? ' <span style="color: green;">[ダウンロード済み]</span>' : ''}</li>`;
             });
             linksHtml += '</ul>';
-            linksDiv.innerHTML = linksHtml;
+            if (modalLinks) modalLinks.innerHTML = linksHtml;
         } else {
-            linksDiv.innerHTML = '<h3>関連リンクが見つかりませんでした</h3><p>AIフィルターの判定が厳しすぎる可能性があります。別の都市で試してみてください。</p>';
+            if (modalLinks) modalLinks.innerHTML = '<p>関連リンクが見つかりませんでした。</p>';
         }
-        
-        // 显示PDF下载链接
+        // Fill modal: PDFs
         if (data.pdf_downloads && data.pdf_downloads.length > 0) {
-            let pdfsHtml = '<h3>ダウンロード済みPDFファイル</h3><ul>';
+            let pdfsHtml = '<ul>';
             data.pdf_downloads.forEach(pdf => {
-                pdfsHtml += `<li>
-                    <a href="${pdf.local_path}" target="_blank">${pdf.filename}</a>
-                    <small> (元URL: <a href="${pdf.original_url}" target="_blank" rel="noopener">リンク</a>)</small>
-                </li>`;
+                pdfsHtml += `<li><a href="${pdf.local_path}" target="_blank">${pdf.filename}</a><small> (元URL: <a href="${pdf.original_url}" target="_blank" rel="noopener">リンク</a>)</small></li>`;
             });
             pdfsHtml += '</ul>';
-            pdfsDiv.innerHTML = pdfsHtml;
+            if (modalPdfs) modalPdfs.innerHTML = pdfsHtml;
         } else {
-            pdfsDiv.innerHTML = '<h3>ダウンロードできたPDFファイルはありませんでした</h3>';
+            if (modalPdfs) modalPdfs.innerHTML = '<p>ダウンロードできたPDFはありませんでした。</p>';
         }
-
-        // 显示统计信息
+        // Stats: compact on main, detailed in modal
         if (data.statistics) {
-            const statsHtml = `
-                <div style="background-color: #f0f8ff; padding: 1em; border-radius: 4px; margin-top: 1em;">
-                    <h4>処理統計</h4>
-                    <p>総クロール数: ${data.statistics.total_crawled || 0}件</p>
-                    <p>処理対象数: ${data.statistics.processed_count || 0}件</p>
-                    <p>関連リンク数: ${data.statistics.relevant_count || 0}件</p>
-                    <p>PDF数: ${data.statistics.pdf_count || 0}件</p>
-                </div>
-            `;
-            reportDiv.innerHTML += statsHtml;
+            const s = data.statistics;
+            if (summaryDiv) {
+                summaryDiv.style.display = 'block';
+                summaryDiv.textContent = `総クロール数: ${s.total_crawled || 0}件 ｜ 処理対象数: ${s.processed_count || 0}件 ｜ 関連リンク: ${s.relevant_count || 0}件 ｜ PDF: ${s.pdf_count || 0}件`;
+            }
+            if (modalStats) {
+                modalStats.innerHTML = `<ul><li>総クロール数: ${s.total_crawled || 0}件</li><li>処理対象数: ${s.processed_count || 0}件</li><li>関連リンク数: ${s.relevant_count || 0}件</li><li>PDF数: ${s.pdf_count || 0}件</li></ul>`;
+            }
         }
 
     } catch (error) {
@@ -120,11 +154,11 @@ async function startAnalysis() {
         statusDiv.textContent = errorMessage;
         statusDiv.style.color = 'red';
         
-        // 显示错误详情
+        // Show error inside modal for concise UI
         resultsDiv.style.display = 'block';
-        reportDiv.innerHTML = `
+        if (modalLinks) modalLinks.innerHTML = `
             <div style="background-color: #ffe6e6; padding: 1em; border-radius: 4px;">
-                <h3>エラー詳細</h3>
+                <h3>エラー</h3>
                 <p>${errorMessage}</p>
                 <h4>対処方法:</h4>
                 <ul>
@@ -135,8 +169,9 @@ async function startAnalysis() {
                 </ul>
             </div>
         `;
-        linksDiv.innerHTML = '';
-        pdfsDiv.innerHTML = '';
+        if (modalPdfs) modalPdfs.innerHTML = '';
+        if (toggleDetailsBtn) toggleDetailsBtn.disabled = false;
+        openModal();
         
         console.error('Analysis error:', error);
     } finally {
